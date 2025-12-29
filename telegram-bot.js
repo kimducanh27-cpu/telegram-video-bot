@@ -22,6 +22,43 @@ if (!TELEGRAM_BOT_TOKEN) {
 // Create bot instance with polling
 const bot = new TelegramBot(TELEGRAM_BOT_TOKEN, { polling: true });
 
+// Express server for health check (prevents Render sleep)
+const express = require('express');
+const app = express();
+const axios = require('axios');
+
+app.get('/health', (req, res) => {
+    res.status(200).json({
+        status: 'ok',
+        bot: 'running',
+        uptime: process.uptime(),
+        timestamp: new Date().toISOString()
+    });
+});
+
+app.get('/', (req, res) => {
+    res.send('🤖 Telegram Video Downloader Bot is running!');
+});
+
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => {
+    console.log(`🌐 Health server running on port ${PORT}`);
+});
+
+// Auto self-ping to prevent Render sleep (every 10 minutes)
+if (process.env.APP_URL && process.env.APP_URL.includes('render')) {
+    console.log('⏰ Self-ping enabled for Render deployment');
+
+    setInterval(async () => {
+        try {
+            const response = await axios.get(`${process.env.APP_URL}/health`);
+            console.log(`✅ Self-ping: ${response.data.status} (uptime: ${Math.floor(response.data.uptime)}s)`);
+        } catch (err) {
+            console.log('❌ Self-ping failed:', err.message);
+        }
+    }, 10 * 60 * 1000); // Every 10 minutes
+}
+
 console.log('🤖 Telegram Video Downloader Bot is running...');
 console.log('✅ Waiting for messages...');
 
